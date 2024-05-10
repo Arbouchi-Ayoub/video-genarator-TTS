@@ -39,7 +39,8 @@ def get_stoic_quotes_new(num_quotes):
 def text_to_speech(text, api_key):
     try:
         print(f"speech_file: {text}")
-        url = f"https://api.elevenlabs.io/v1/text-to-speech/2EiwWnXFnvU5JabPnv8n/stream"
+        VOICE_ID = ""
+        url = f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}/stream"
         headers = {
             "Accept": "application/json",
             "xi-api-key": api_key
@@ -90,7 +91,7 @@ def generate_video():
         font_color = data.get('font_color', 'white')
         background_color = data.get('background_color', 'black')
         background_opacity = data.get('background_opacity', 1.0)
-        tts_api_key = data.get('tts_api_key', "f431ef26d47c5df16f1dfbb2557cc70e")
+        tts_api_key = data.get('tts_api_key', "API_KEY")
 
         num_quotes = data.get('num_quotes', 3)
         quotes = get_stoic_quotes(num_quotes)
@@ -101,7 +102,7 @@ def generate_video():
 
         for quote, author in quotes:
             print(f"Quote: {quote}")
-            speech_file = text_to_speech(quote, "f431ef26d47c5df16f1dfbb2557cc70e")
+            speech_file = text_to_speech(quote, "API_KEY")
             if not speech_file:
                 continue
             # Create an audio clip from the generated voiceover

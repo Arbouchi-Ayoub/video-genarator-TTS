@@ -52,7 +52,8 @@ def get_stoic_quotes_new(num_quotes):
 def text_to_speech(text, api_key):
     try:
         # print(f"speech_file: {text}")
-        url = f"https://api.elevenlabs.io/v1/text-to-speech/2EiwWnXFnvU5JabPnv8n/stream"
+        VOICE_ID = "2EiwWnXFnvU5JabPnv8n"
+        url = f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}/stream"
         headers = {
             "Accept": "application/json",
             "xi-api-key": api_key
@@ -112,7 +113,7 @@ def generate_video():
         background_color = data.get('background_color', 'black')
         background_opacity = data.get('background_opacity', 1.0)
 
-        num_quotes = data.get('num_quotes', 3)
+        num_quotes = data.get('num_quotes', 3) # number of quotes to generate
         quotes = get_stoic_quotes(num_quotes, 'src/happiness.json')
         if not quotes:
             raise Exception("Failed to retrieve any stoic quotes from API")
