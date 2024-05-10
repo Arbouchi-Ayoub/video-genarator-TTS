@@ -36,10 +36,10 @@ def get_stoic_quotes_new(num_quotes):
     else:
         return None
 
-def text_to_speech(text, api_key):
+def text_to_speech(text, api_key, tts_voice_id):
     try:
         print(f"speech_file: {text}")
-        VOICE_ID = ""
+        VOICE_ID = tts_voice_id
         url = f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}/stream"
         headers = {
             "Accept": "application/json",
@@ -81,6 +81,46 @@ def random_image(image_folder, used_images):
     used_images.append(image_file)
     return os.path.join(image_folder, image_file)
 
+def create_transition(clip, transition_type, duration):
+    if transition_type == 'fade':
+        return clip.fadein(duration).fadeout(duration)
+    elif transition_type == 'slide':
+        return clip.crossfadein(duration).crossfadeout(duration)
+    else:
+        return clip.fadein(duration).fadeout(duration)
+    
+def apply_black_noise(clip, duration):
+    # Check if the input is a CompositeVideoClip
+    if isinstance(clip, mp.CompositeVideoClip):
+        # Convert the CompositeVideoClip to a regular VideoClip
+        clip = clip.clips[0]
+
+    # Generate black noise with the same shape as the clip frame
+    noise = np.random.randint(0, 256, size=(clip.h, clip.w, 3), dtype=np.uint8)
+
+    # Convert the clip to a grayscale color space
+    grayscale_clip = clip.fl_image(lambda img: Image.fromarray(img).convert('L'))
+
+    # Create a VideoClip from the noise array
+    noise_clip = mp.ImageClip(noise).set_duration(duration)
+
+    # Combine the grayscale clip with the noise clip as an overlay
+    noisy_clip = mp.CompositeVideoClip([grayscale_clip, noise_clip], size=clip.size)
+
+    # Adjust the opacity of the noise layer to control the intensity of the effect
+    noisy_clip.set_opacity(0.3)  # Adjust opacity between 0 (invisible) and 1 (fully opaque)
+    return noisy_clip
+
+def get_quotes(limit):
+    url = "https://dr-almotawa-quotes.p.rapidapi.com/getRandomQuote"
+    querystring = {"limit":"50"}
+    headers = {
+        "X-RapidAPI-Key": "1e37dc205fmsha6035427a78df27p1e2e15jsnf96ce28bcda5",
+        "X-RapidAPI-Host": "dr-almotawa-quotes.p.rapidapi.com"
+    }
+    response = requests.get(url, headers=headers, params=querystring)
+    print(response.json())
+
 @app.route('/generate-video', methods=['POST'])
 def generate_video():
     try:
@@ -91,9 +131,10 @@ def generate_video():
         font_color = data.get('font_color', 'white')
         background_color = data.get('background_color', 'black')
         background_opacity = data.get('background_opacity', 1.0)
-        tts_api_key = data.get('tts_api_key', "API_KEY")
+        tts_voice_id = data.get('tts_voice_id', "2EiwWnXFnvU5JabPnv8n")
+        tts_api_key = data.get('tts_api_key', "33fea3ee4061b241d69e312ad7aa0ef1")
 
-        num_quotes = data.get('num_quotes', 3)
+        num_quotes = data.get('num_quotes', 1)
         quotes = get_stoic_quotes(num_quotes)
         if not quotes:
             raise Exception("Failed to retrieve any stoic quotes from API")
@@ -102,7 +143,7 @@ def generate_video():
 
         for quote, author in quotes:
             print(f"Quote: {quote}")
-            speech_file = text_to_speech(quote, "API_KEY")
+            speech_file = text_to_speech(quote, tts_api_key, tts_voice_id)
             if not speech_file:
                 continue
             # Create an audio clip from the generated voiceover
@@ -158,12 +199,14 @@ def generate_video():
 
         speed_factor = 0.9  # Adjust the speed factor as needed (0.8 means 80% of the original speed)
         final_video = final_video.fx(mp.vfx.speedx, factor=speed_factor)
-
         # Add watermark signature text
         watermark_text = "Stoic the Great."
         watermark_clip = mp.TextClip(watermark_text, fontsize=50, color='white', font="Futura-bold")
         watermark_clip = watermark_clip.set_pos(('right', 'bottom')).set_duration(final_video.duration)
         final_video = mp.CompositeVideoClip([final_video, watermark_clip])
+        
+        # Apply black noise effect
+        # final_video = apply_black_noise(final_video, duration=final_video.duration)
 
         # Define the directory for saving the video file
         output_directory = 'VSL'
@@ -179,6 +222,10 @@ def generate_video():
             else:
                 sound_effect_clip = sound_effect_clip.subclip(0, final_video.duration)
             final_video = final_video.set_audio(mp.CompositeAudioClip([final_video.audio, sound_effect_clip]))
+        
+        
+        
+        
         # Write the video file using moviepy
         video_output_path = os.path.join(output_directory, 'daily-quote-stoic-3.mp4')
         final_video.fps = video_clips[0].fps if video_clips else 24  # Set fps of final_video to the fps of the first clip
